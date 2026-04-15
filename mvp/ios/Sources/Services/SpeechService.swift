@@ -35,9 +35,13 @@ final class SpeechService: NSObject, @unchecked Sendable {
         let inputNode = engine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
 
-        // Simulator has no real microphone — skip audio tap gracefully
+        // Simulator has no real microphone — show listening UI briefly then auto-stop
         guard recordingFormat.sampleRate > 0 else {
-            await MainActor.run { self.isListening = false }
+            isListening = true
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                self.stopListening()
+            }
             return
         }
 
