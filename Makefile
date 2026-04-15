@@ -1,6 +1,6 @@
 .PHONY: help ios-gen ios-build ios-run ios-clean \
          web-install web-dev web-build web-preview \
-         mac-install mac-electron-dev mac-electron-build mac-electron-build:dir
+         mac-install mac-electron-dev mac-electron-build mac-electron-build-dir
 
 help:
 	@echo "Voicer MVP - Unified Makefile"
@@ -21,7 +21,7 @@ help:
 	@echo "    make mac-install   Install npm dependencies"
 	@echo "    make mac-electron-dev     Run Electron in dev mode"
 	@echo "    make mac-electron-build    Build macOS dmg + zip"
-	@echo "    make mac-electron-build:dir Build macOS app (no dmg)"
+	@echo "    make mac-electron-build-dir   Build macOS app (no dmg)"
 	@echo ""
 
 # ── iOS ──────────────────────────────────────────────────────────────────
@@ -60,5 +60,5 @@ mac-electron-dev: mac-install
 mac-electron-build: mac-install
 	cd mac && npm run electron:build
 
-mac-electron-build:dir: mac-install
+mac-electron-build-dir: mac-install
 	cd mac && npm run electron:build:dir
