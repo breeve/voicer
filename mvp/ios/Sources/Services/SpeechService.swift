@@ -26,13 +26,22 @@ final class SpeechService: NSObject, @unchecked Sendable {
         }
     }
 
+    private var audioEngine: AVAudioEngine?
+
     func startListening() async throws {
         guard await requestAuthorization() else { return }
 
-        let audioEngine = AVAudioEngine()
-        let inputNode = audioEngine.inputNode
-        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
 
+        // Simulator has no real microphone — skip audio tap gracefully
+        guard recordingFormat.sampleRate > 0 else {
+            await MainActor.run { self.isListening = false }
+            return
+        }
+
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         guard let request = recognitionRequest else { return }
         request.shouldReportPartialResults = false
 
@@ -47,13 +56,13 @@ final class SpeechService: NSObject, @unchecked Sendable {
             }
         }
 
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             self.recognitionRequest?.append(buffer)
         }
 
-        audioEngine.prepare()
-        try audioEngine.start()
+        engine.prepare()
+        try engine.start()
+        self.audioEngine = engine
         isListening = true
 
         Task {
@@ -63,6 +72,9 @@ final class SpeechService: NSObject, @unchecked Sendable {
     }
 
     func stopListening() {
+        audioEngine?.stop()
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine = nil
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         recognitionTask = nil
