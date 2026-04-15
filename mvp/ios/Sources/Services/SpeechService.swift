@@ -6,12 +6,20 @@ import AVFoundation
 @MainActor
 final class SpeechService: NSObject, @unchecked Sendable {
     var transcript: String = ""
+    var partialTranscript: String = ""
     var isListening: Bool = false
     var isSpeaking: Bool = false
+    var audioLevel: Float = 0.0
+
+    var locale: Locale = Locale(identifier: "zh-CN") {
+        didSet { speechRecognizer = SFSpeechRecognizer(locale: locale) }
+    }
 
     private let synthesizer = AVSpeechSynthesizer()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var speechRecognizer: SFSpeechRecognizer? = SFSpeechRecognizer(locale: Locale(identifier: "zh-CN"))
+    private var audioEngine: AVAudioEngine?
 
     override init() {
         super.init()
@@ -26,10 +34,20 @@ final class SpeechService: NSObject, @unchecked Sendable {
         }
     }
 
-    private var audioEngine: AVAudioEngine?
+    func requestPermissions() async -> (speech: Bool, mic: Bool) {
+        let speechGranted = await requestAuthorization()
+        let micGranted = await withCheckedContinuation { continuation in
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+        return (speechGranted, micGranted)
+    }
 
     func startListening() async throws {
-        guard await requestAuthorization() else { return }
+        let (speechGranted, micGranted) = await requestPermissions()
+        guard speechGranted else { return }
+        guard micGranted else { return }
 
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
@@ -47,21 +65,38 @@ final class SpeechService: NSObject, @unchecked Sendable {
 
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         guard let request = recognitionRequest else { return }
-        request.shouldReportPartialResults = false
+        request.shouldReportPartialResults = true
 
-        let locale = Locale(identifier: "zh-CN")
-        let recognizer = SFSpeechRecognizer(locale: locale)!
-
-        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+        recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
+                guard let self else { return }
                 if let result = result {
-                    self?.transcript = result.bestTranscription.formattedString
+                    let text = result.bestTranscription.formattedString
+                    if result.isFinal {
+                        self.transcript = text
+                        self.partialTranscript = ""
+                    } else {
+                        self.partialTranscript = text
+                    }
                 }
             }
         }
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-            self.recognitionRequest?.append(buffer)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            self?.recognitionRequest?.append(buffer)
+
+            guard let channelData = buffer.floatChannelData?[0] else { return }
+            let frameLength = Int(buffer.frameLength)
+            var sum: Float = 0
+            for i in 0..<frameLength {
+                sum += channelData[i] * channelData[i]
+            }
+            let rms = sqrtf(sum / Float(max(frameLength, 1)))
+            let dB = 20 * log10(max(rms, 1e-6))
+            let normalized = max(0, min(1, (dB + 50) / 40))
+            Task { @MainActor in
+                self?.audioLevel = normalized
+            }
         }
 
         engine.prepare()
@@ -69,9 +104,11 @@ final class SpeechService: NSObject, @unchecked Sendable {
         self.audioEngine = engine
         isListening = true
 
-        Task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            await MainActor.run { self.stopListening() }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            if self.isListening {
+                self.stopListening()
+            }
         }
     }
 
@@ -84,6 +121,8 @@ final class SpeechService: NSObject, @unchecked Sendable {
         recognitionTask = nil
         recognitionRequest = nil
         isListening = false
+        audioLevel = 0
+        partialTranscript = ""
     }
 
     nonisolated func speak(_ text: String, rate: Double = 1.0, pitch: Double = 1.0) {

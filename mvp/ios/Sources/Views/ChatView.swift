@@ -7,7 +7,9 @@ struct ChatView: View {
     @State private var showConfig: Bool = false
     @State private var showAlarm: Bool = false
     @State private var isLoading: Bool = false
+    @State private var isRefining: Bool = false
     private let llm = LLMService()
+    private let refiner = LLMRefiner.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,6 +40,7 @@ struct ChatView: View {
                         if speech.isListening {
                             speech.stopListening()
                         } else {
+                            speech.locale = Locale(identifier: store.config.llm.locale)
                             do {
                                 try await speech.startListening()
                             } catch {
@@ -46,20 +49,21 @@ struct ChatView: View {
                         }
                     }
                 } label: {
-                    Image(systemName: speech.isListening ? "waveform" : "mic.fill")
-                        .font(.title2)
-                        .foregroundStyle(speech.isListening ? .red : .accentColor)
+                    ZStack {
+                        WaveformView(audioLevel: speech.audioLevel, isListening: speech.isListening)
+                    }
+                    .frame(width: 36, height: 24)
                 }
                 .disabled(isLoading)
 
                 if speech.isListening {
                     HStack(spacing: 6) {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text(speech.transcript.isEmpty ? "聆听中..." : speech.transcript)
+                        WaveformView(audioLevel: speech.audioLevel, isListening: speech.isListening)
+                        Text(displayText)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -104,20 +108,41 @@ struct ChatView: View {
         }
         .onChange(of: speech.transcript) { _, newValue in
             if !newValue.isEmpty && !speech.isListening {
-                inputText = newValue
+                let finalText = newValue
+                if refiner.isEnabled && refiner.isConfigured {
+                    isRefining = true
+                    refiner.refine(finalText) { [self] result in
+                        isRefining = false
+                        switch result {
+                        case .success(let refined):
+                            inputText = refined.isEmpty ? finalText : refined
+                        case .failure:
+                            inputText = finalText
+                        }
+                    }
+                } else {
+                    inputText = finalText
+                }
+                speech.transcript = ""
             }
         }
+    }
+
+    private var displayText: String {
+        let text = speech.partialTranscript.isEmpty ? speech.transcript : speech.partialTranscript
+        if isRefining { return "优化中..." }
+        return text.isEmpty ? "聆听中..." : text
     }
 
     private func send() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         inputText = ""
-        let userMsg = text
         speech.transcript = ""
+        speech.partialTranscript = ""
 
         Task {
-            store.sendUserMessage(content: userMsg)
+            store.sendUserMessage(content: text)
             isLoading = true
 
             let aiContent = await llm.send(messages: store.messages, config: store.config.llm)

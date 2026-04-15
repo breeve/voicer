@@ -6,9 +6,33 @@ struct ConfigView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var localConfig: AppConfig = .defaults
 
+    private let refiner = LLMRefiner.shared
+
+    private let languages: [(String, String)] = [
+        ("中文 (简体)", "zh-CN"),
+        ("English (US)", "en-US"),
+        ("日本語", "ja-JP"),
+        ("한국어", "ko-KR"),
+    ]
+
     var body: some View {
         NavigationStack {
             Form {
+                Section("语音识别语言") {
+                    Picker("语言", selection: Binding(
+                        get: { localConfig.llm.locale },
+                        set: {
+                            localConfig.llm.locale = $0
+                            speech.locale = Locale(identifier: $0)
+                            store.updateConfig(localConfig)
+                        }
+                    )) {
+                        ForEach(languages, id: \.1) { name, code in
+                            Text(name).tag(code)
+                        }
+                    }
+                }
+
                 Section("音色") {
                     VStack(alignment: .leading) {
                         Text("语速: \(localConfig.llm.voiceRate, specifier: "%.1f")")
@@ -37,7 +61,44 @@ struct ConfigView: View {
                     }
                 }
 
-                Section("LLM") {
+                Section("LLM 识别优化") {
+                    Toggle("启用 LLM 优化", isOn: Binding(
+                        get: { refiner.isEnabled },
+                        set: { newValue in
+                            refiner.isEnabled = newValue
+                            store.updateConfig(localConfig)
+                        }
+                    ))
+
+                    if refiner.isEnabled {
+                        TextField("API Base URL", text: Binding(
+                            get: { refiner.apiBaseURL },
+                            set: { refiner.apiBaseURL = $0 }
+                        ))
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+
+                        SecureField("API Key", text: Binding(
+                            get: { refiner.apiKey },
+                            set: { refiner.apiKey = $0 }
+                        ))
+
+                        TextField("模型", text: Binding(
+                            get: { refiner.model },
+                            set: { refiner.model = $0 }
+                        ))
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+
+                        if !refiner.isConfigured {
+                            Text("请配置 API Key 以启用 LLM 优化")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+
+                Section("LLM 对话") {
                     Picker("模式", selection: Binding(
                         get: { localConfig.llm.provider },
                         set: {
