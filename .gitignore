@@ -1,1 +1,8 @@
 .tmp/
+
+# Build outputs
+mvp/web/dist/
+mvp/web/dist-electron/
+mvp/mac/dist-electron/
+mvp/mac/release/
+mvp/ios/Voicer.xcodeproj/
