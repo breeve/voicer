@@ -16,9 +16,7 @@ build: gen
 	xcodebuild -project Voicer.xcodeproj -scheme Voicer -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 run: build
-	xcrun simctl boot $(xcrun simctl list devices available | grep "iPhone 16" | head -1 | awk '{print $$1}')
 	open -a Simulator
-	xcodebuild -project Voicer.xcodeproj -scheme Voicer -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 clean:
 	rm -rf Voicer.xcodeproj build
