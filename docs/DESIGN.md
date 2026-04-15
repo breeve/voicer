@@ -51,12 +51,17 @@
 | 语音合成 | Web Speech Synthesis API |
 | 跨平台容器 | Capacitor（打包为 PWA / Electron 备选） |
 
-### 2.4 LLM 调用
+### 2.4 LLM 调用（无服务端）
+
+**MVP 阶段不依赖任何服务器**，LLM 采用双轨模式：
 
 | 环境 | 方案 |
 |------|------|
-| **iPhone / iWatch** | 直接调用 OpenAI / Anthropic API（API Key 存储在 Keychain） |
-| **Web** | Next.js API Routes 代理调用（保护 API Key） |
+| **默认** | Mock 响应，无需配置，开箱即用 |
+| **可选** | Ollama 本地 LLM（用户自行安装，macOS: `brew install ollama`） |
+| **进阶** | 直接调用 OpenAI / Anthropic API（API Key 存储在本地） |
+
+iPhone / iWatch 同样支持 Mock 或 Ollama，不强制联网。
 
 ### 2.5 为什么不选其他方案
 
@@ -67,7 +72,7 @@
 | SwiftUI + Xcode 图形化 | 需要 IDE 配置，不够轻量 |
 | Electron（Web 端） | Capacitor 更轻量，天然支持移动端打包 |
 
-### 2.6 架构图
+### 2.6 架构图（无服务端）
 
 ```
 ┌─────────────────────────────────────────┐
@@ -76,7 +81,7 @@
 │  │  SwiftUI App (Swift Package)    │    │
 │  │  - 对话界面                      │    │
 │  │  - 语音输入/输出                  │    │
-│  │  - LLM 调用                      │    │
+│  │  - LLM (Mock / Ollama)          │    │
 │  │  - 闹钟管理                       │    │
 │  └─────────────────────────────────┘    │
 │                    ↕ 协同                 │
@@ -86,16 +91,19 @@
 │  │  - 电话能力（辅助）               │    │
 │  └─────────────────────────────────┘    │
 └─────────────────────────────────────────┘
-                    ↕ 共享数据
+          ↕ 本地存储（UserDefaults / 文件）
 ┌─────────────────────────────────────────┐
-│              Web (Capacitor)             │
+│         macOS / Windows Desktop          │
 │  ┌─────────────────────────────────┐    │
+│  │  Capacitor Desktop App          │    │
 │  │  React + TypeScript             │    │
 │  │  - 对话界面（响应式）            │    │
 │  │  - 语音输入/输出                 │    │
-│  │  - LLM 调用（API Proxy）         │    │
+│  │  - LLM (Mock / Ollama)          │    │
+│  │  - localStorage 持久化           │    │
 │  └─────────────────────────────────┘    │
-│         支持：macOS / Windows / Linux    │
+│  支持：macOS / Windows / Linux          │
+│  无需任何服务器                          │
 └─────────────────────────────────────────┘
 ```
 
@@ -431,35 +439,45 @@ export function useSpeechRecognition() {
 }
 ```
 
-### 5.5 LLM 服务
+### 5.5 LLM 服务（无服务端）
 
 ```ts
 // src/services/llm.ts
-const MODELS = {
-  openai: 'gpt-4o-mini',
-  anthropic: 'claude-3-5-haiku-20241022',
-} as const
+// MVP 采用 Mock + Ollama 双轨模式，无需任何服务器
 
 interface LLMConfig {
-  provider: 'openai' | 'anthropic'
-  apiKey: string
-  baseURL?: string
+  provider: 'mock' | 'ollama'
+  ollamaUrl?: string
+  model?: string
 }
 
+const MOCK_RESPONSES = [
+  '好的，我已经记下了。',
+  '有意思，请继续说。',
+  '我明白你的意思了。',
+]
+
 export async function sendToLLM(
-  messages: { role: string; content: string }[],
+  _messages: { role: string; content: string }[],
   config: LLMConfig
 ): Promise<string> {
-  // Web 端通过 API Route 代理调用
-  const response = await fetch('/api/chat', {
+  // Mock 模式：无需配置，立即可用
+  if (config.provider === 'mock') {
+    await new Promise(r => setTimeout(r, 800 + Math.random() * 700))
+    return MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)]
+  }
+
+  // Ollama 模式：调用本地 LLM
+  const response = await fetch(`${config.ollamaUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, config }),
+    body: JSON.stringify({
+      model: config.model || 'llama3.2',
+      messages,
+    }),
   })
-
-  if (!response.ok) throw new Error('LLM request failed')
   const data = await response.json()
-  return data.content
+  return data.message?.content ?? ''
 }
 ```
 
