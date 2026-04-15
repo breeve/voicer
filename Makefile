@@ -26,16 +26,16 @@ help:
 
 # ── iOS ──────────────────────────────────────────────────────────────────
 ios-gen:
-	cd ios && $(MAKE) gen
+	cd mvp/ios && $(MAKE) gen
 
 ios-build:
-	cd ios && $(MAKE) build
+	cd mvp/ios && $(MAKE) build
 
 ios-run:
-	cd ios && $(MAKE) run
+	cd mvp/ios && $(MAKE) run
 
 ios-clean:
-	cd ios && $(MAKE) clean
+	cd mvp/ios && $(MAKE) clean
 
 # ── Web ──────────────────────────────────────────────────────────────────
 web-install:
