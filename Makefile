@@ -1,22 +1,64 @@
-.PHONY: help install dev build preview
+.PHONY: help ios-gen ios-build ios-run ios-clean \
+         web-install web-dev web-build web-preview \
+         mac-install mac-electron-dev mac-electron-build mac-electron-build:dir
 
 help:
-	@echo "Voicer MVP - Makefile commands"
+	@echo "Voicer MVP - Unified Makefile"
 	@echo ""
-	@echo "  make install   安装依赖"
-	@echo "  make dev       开发模式运行（http://localhost:5173）"
-	@echo "  make build     构建生产版本到 dist/"
-	@echo "  make preview   预览生产构建"
+	@echo "  iOS:"
+	@echo "    make ios-gen        Generate Xcode project"
+	@echo "    make ios-build     Build for iOS Simulator"
+	@echo "    make ios-run       Build and launch in Simulator"
+	@echo "    make ios-clean     Remove generated project"
+	@echo ""
+	@echo "  Web:"
+	@echo "    make web-install   Install npm dependencies"
+	@echo "    make web-dev       Vite dev server (http://localhost:5173)"
+	@echo "    make web-build     Production build to web/dist/"
+	@echo "    make web-preview   Preview production build"
+	@echo ""
+	@echo "  macOS Desktop:"
+	@echo "    make mac-install   Install npm dependencies"
+	@echo "    make mac-electron-dev     Run Electron in dev mode"
+	@echo "    make mac-electron-build    Build macOS dmg + zip"
+	@echo "    make mac-electron-build:dir Build macOS app (no dmg)"
 	@echo ""
 
-install:
-	cd mvp && npm install
+# ── iOS ──────────────────────────────────────────────────────────────────
+ios-gen:
+	cd ios && $(MAKE) gen
 
-dev:
-	cd mvp && npm run dev
+ios-build:
+	cd ios && $(MAKE) build
 
-build:
-	cd mvp && npm run build
+ios-run:
+	cd ios && $(MAKE) run
 
-preview:
-	cd mvp && npm run preview
+ios-clean:
+	cd ios && $(MAKE) clean
+
+# ── Web ──────────────────────────────────────────────────────────────────
+web-install:
+	cd web && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm install
+
+web-dev:
+	cd web && npm run dev
+
+web-build:
+	cd web && npm run build
+
+web-preview:
+	cd web && npm run preview
+
+# ── macOS Desktop ────────────────────────────────────────────────────────
+mac-install:
+	cd mac && npm install
+
+mac-electron-dev: mac-install
+	cd mac && npm run electron:dev
+
+mac-electron-build: mac-install
+	cd mac && npm run electron:build
+
+mac-electron-build:dir: mac-install
+	cd mac && npm run electron:build:dir

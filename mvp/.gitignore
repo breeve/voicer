@@ -1,4 +1,17 @@
-node_modules/
+# Build outputs
 dist/
+dist-electron/
+release/
+node_modules/
+
+# Environment
 .env
+.env.*
 *.local
+
+# macOS
+.DS_Store
+
+# IDE
+*.xcuserdata
+*.xcworkspace
