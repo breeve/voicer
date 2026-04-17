@@ -1,0 +1,75 @@
+.button {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-spring);
+  flex-shrink: 0;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  position: relative;
+}
+
+.button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.button:active {
+  transform: scale(0.95);
+}
+
+.listening {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: white;
+  animation: pulse 1.5s infinite var(--ease-out);
+}
+
+.listening:hover {
+  background: oklch(60% 0.25 25);
+  border-color: oklch(60% 0.25 25);
+  color: white;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(65% 0.25 25 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px oklch(65% 0.25 25 / 0);
+  }
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+}
+
+.waveformBar {
+  width: 3px;
+  background: currentColor;
+  border-radius: var(--radius-full);
+  animation: wave 0.6s ease-in-out infinite alternate;
+}
+
+.waveformBar:nth-child(1) { height: 8px; animation-delay: 0s; }
+.waveformBar:nth-child(2) { height: 16px; animation-delay: 0.1s; }
+.waveformBar:nth-child(3) { height: 12px; animation-delay: 0.2s; }
+.waveformBar:nth-child(4) { height: 20px; animation-delay: 0.15s; }
+.waveformBar:nth-child(5) { height: 10px; animation-delay: 0.05s; }
+
+@keyframes wave {
+  from { transform: scaleY(0.5); }
+  to { transform: scaleY(1); }
+}

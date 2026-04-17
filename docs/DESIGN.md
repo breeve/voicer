@@ -112,7 +112,7 @@ iPhone / iWatch 同样支持 Mock 或 Ollama，不强制联网。
 ## 3. 里程碑规划
 
 ### M0 — 基础骨架 [第 1 周]
-- [ ] 项目目录初始化（`packages/ios`, `packages/watch`, `packages/web`）
+- [ ] 项目目录初始化（`ios/`, `packages/watch`, `packages/web`）
 - [ ] Swift Package.swift 定义（iPhone / iWatch）
 - [ ] Web: Vite + React + TypeScript 初始化
 - [ ] CSS 变量系统定义
@@ -327,7 +327,7 @@ class SpeechRecognizer: ObservableObject {
 ### 5.1 项目结构
 
 ```
-packages/web/
+packages/webapp/
 ├── src/
 │   ├── components/
 │   │   ├── ChatBox/

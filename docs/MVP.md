@@ -156,7 +156,7 @@
 ## 5. 项目结构
 
 ```
-packages/web/
+packages/webapp/
 ├── src/
 │   ├── components/
 │   │   ├── ChatBox/
